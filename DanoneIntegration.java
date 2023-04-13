@@ -17,9 +17,11 @@ import com.danone.asn.input.Detail;
 import com.danone.asn.input.InputASN;
 import com.danone.asn.input.Line;
 import com.danone.asn.output.OutputASN;
+import com.danone.PostGoodIssue.input.InputPostGoodIssue;
+import com.danone.PostGoodIssue.output.OrderLine;
+import com.danone.PostGoodIssue.output.OutputPostGoodIssue;
 
 import com.danone.deliveryInstruction.input.InputDeliveryInstruction;
-import com.danone.deliveryInstruction.input.OrderLine;
 import com.danone.deliveryInstruction.output.OutputDeliveryInstruction;
 
 import org.apache.camel.builder.RouteBuilder;
@@ -84,6 +86,25 @@ public class DanoneIntegration extends RouteBuilder {
         .setHeader(Exchange.HTTP_METHOD, constant("POST"))
         .toD("http://app-server.poc-camelk-p-s.svc.cluster.local/execute?bridgeEndpoint=true&throwExceptionOnFailure=false")
         .log("Response: ${body}");
+
+    rest()
+    .post("/postGoodIsuue")
+    .responseMessage(200, "post endpoint")
+    .description("Post Endpoint")
+    .type(InputPostGoodIssue[].class)
+    .consumes("application/json")
+    .produces("application/json")
+    .to("direct:postGoodIsuueRoute");
+    
+    from("direct:postGoodIsuueRoute")
+    .unmarshal().json(JsonLibrary.Jackson, InputPostGoodIssue[].class)
+    .process(new ProcessHandlePostGoodIssue())
+    .marshal().json()
+    .log("Output: ${body}")
+    .setHeader(Exchange.HTTP_METHOD, constant("POST"))
+    .toD("http://app-server.poc-camelk-p-s.svc.cluster.local/execute?bridgeEndpoint=true&throwExceptionOnFailure=false")
+    .log("Response: ${body}");
+
   }
 
 }
@@ -131,7 +152,7 @@ class ProcessHandleDeliveryInstruction implements Processor {
     InputDeliveryInstruction body = exchange.getMessage().getBody(InputDeliveryInstruction.class);
     List<OutputDeliveryInstruction> output = new ArrayList<>();
 
-    for (OrderLine line : body.getOrderLine()) {
+    for (com.danone.deliveryInstruction.input.OrderLine line : body.getOrderLine()) {
 
       OutputDeliveryInstruction outputDelivery = new OutputDeliveryInstruction();
       outputDelivery.setFecha(null);
@@ -186,4 +207,40 @@ class ProcessHandleASN implements Processor {
     exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 200);
   }
 
+}
+
+class ProcessHandlePostGoodIssue implements Processor{
+
+  @Override
+  public void process(Exchange exchange) throws Exception {
+    List<InputPostGoodIssue> body = (List<InputPostGoodIssue>) exchange.getMessage().getBody(List.class);
+    OutputPostGoodIssue output = new OutputPostGoodIssue();
+    List<com.danone.PostGoodIssue.output.OrderLine> orderLines = new ArrayList<>();
+
+    output.setDeliveryNumber(body.stream().findFirst().get().getLINUM());
+    output.setShipmentDate(body.stream().findFirst().get().getDLIEF());
+    output.setPlantCode(body.stream().findFirst().get().getWERKS());
+    output.setShipmentID(null);
+
+    for (InputPostGoodIssue inputPostGoodIssue : body) {
+      OrderLine orderLine = new OrderLine();
+
+      orderLine.setProductNumber(inputPostGoodIssue.getNUM());
+      orderLine.setQtyInBasicUnit(inputPostGoodIssue.getMEINS());
+      orderLine.setBasicUnit(inputPostGoodIssue.getLGMNG());
+      orderLine.setQtyInDeliveryUnit(inputPostGoodIssue.getVRKME());
+      orderLine.setQuantity(inputPostGoodIssue.getGLIEF1());
+      orderLine.setBatch(inputPostGoodIssue.getPRODLOT());
+      orderLine.setExpiryDate(inputPostGoodIssue.getEXPIRY());
+      orderLine.setSscc(inputPostGoodIssue.getSSCC());
+
+      orderLines.add(orderLine);
+    }
+
+    output.setOrderLine(orderLines);
+
+    exchange.getMessage().setBody(output);
+    exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 200);
+  }
+  
 }
