@@ -42,9 +42,10 @@ public class DanoneIntegration extends RouteBuilder {
         .unmarshal().json(JsonLibrary.Jackson, InputASN.class)
         .process(new ProcessHandleASN())
         .marshal().json()
+        .log("Output: ${body}")
         .setHeader(Exchange.HTTP_METHOD, constant("POST"))
         .toD("http://app-server.poc-camelk-p-s.svc.cluster.local/execute?bridgeEndpoint=true&throwExceptionOnFailure=false")
-        .log("{$body}");
+        .log("Response: ${body}");
 
     rest()
         .post("/asn/confirmation")
@@ -59,9 +60,10 @@ public class DanoneIntegration extends RouteBuilder {
         .unmarshal().json(JsonLibrary.Jackson, InputASNConfirmation[].class)
         .process(new ProcessHandleAsnConfirmation())
         .marshal().json()
+        .log("Output: ${body}")
         .setHeader(Exchange.HTTP_METHOD, constant("POST"))
         .toD("http://app-server.poc-camelk-p-s.svc.cluster.local/execute?bridgeEndpoint=true&throwExceptionOnFailure=false")
-        .log("{$body}");
+        .log("Response: ${body}");
 
     rest()
         .post("/deliveryInstruction")
@@ -78,9 +80,10 @@ public class DanoneIntegration extends RouteBuilder {
         .unmarshal().json(JsonLibrary.Jackson, InputDeliveryInstruction.class)
         .process(new ProcessHandleDeliveryInstruction())
         .marshal().json()
+        .log("Output: ${body}")
         .setHeader(Exchange.HTTP_METHOD, constant("POST"))
         .toD("http://app-server.poc-camelk-p-s.svc.cluster.local/execute?bridgeEndpoint=true&throwExceptionOnFailure=false")
-        .log("{$body}");
+        .log("Response: ${body}");
   }
 
 }
